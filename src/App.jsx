@@ -11,7 +11,23 @@ function App() {
   const [selectedAnswers, setSelectedAnswers] = useState({});
   const [showResult, setShowResult] = useState(false);
 
-  const handleCategoryClick = async (category) => {
+  // Categorías expandidas con subcategorías
+  const categories = {
+    "Ciencia": ["Biología", "Física", "Química", "Astronomía", "Tecnología"],
+    "Historia": ["Antigua", "Medieval", "Moderna", "Contemporánea", "Local"],
+    "Geografía": ["Países", "Capitales", "Relieve", "Clima", "Océanos"],
+    "Arte": ["Pintura", "Música", "Literatura", "Cine", "Arquitectura"],
+    "Entretenimiento": ["Deportes", "Videojuegos", "Series", "Música Pop", "Celebridades"]
+  };
+
+  const isQuestionUnique = (newQuestion, existingQuestions) => {
+    return !existingQuestions.some(q => 
+      q.question.toLowerCase().trim() === newQuestion.question.toLowerCase().trim() ||
+      JSON.stringify(q.options.sort()) === JSON.stringify(newQuestion.options.sort())
+    );
+  };
+
+  const handleCategoryClick = async (mainCategory) => {
     try {
       setLoading(true);
       setError(null);
@@ -20,12 +36,38 @@ function App() {
       setSelectedAnswers({});
       setShowResult(false);
       
-      // Obtener 5 preguntas
       const questionsArray = [];
-      for (let i = 0; i < 5; i++) {
-        const response = await axios.post('https://trivial-completo-back.vercel.app/api/trivia/generate', { category });
-        questionsArray.push(response.data);
+      const subcategories = categories[mainCategory];
+      let attempts = 0;
+      const maxAttempts = 15; // Límite de intentos para evitar bucle infinito
+
+      while (questionsArray.length < 5 && attempts < maxAttempts) {
+        attempts++;
+        // Seleccionar una subcategoría aleatoria
+        const subcategory = subcategories[Math.floor(Math.random() * subcategories.length)];
+        
+        const response = await axios.post('https://trivial-completo-back.vercel.app/api/trivia/generate', {
+          category: mainCategory,
+          subcategory: subcategory,
+          difficulty: Math.random() > 0.5 ? 'difícil' : 'moderado' // Variar dificultad
+        });
+
+        const newQuestion = response.data;
+        
+        // Solo agregar la pregunta si es única
+        if (isQuestionUnique(newQuestion, questionsArray)) {
+          questionsArray.push({
+            ...newQuestion,
+            subcategory, // Guardar la subcategoría para mostrarla
+          });
+        }
       }
+
+      if (questionsArray.length < 5) {
+        setError("No se pudieron generar suficientes preguntas únicas. Por favor, intenta de nuevo.");
+        return;
+      }
+
       setQuestions(questionsArray);
     } catch (err) {
       console.error("Error al generar preguntas:", err);
@@ -77,7 +119,7 @@ function App() {
 
         {!questions.length && (
           <div className="row justify-content-center mb-5">
-            {["Ciencia", "Historia", "Geografía", "Arte", "Entretenimiento"].map((category) => (
+            {Object.keys(categories).map((category) => (
               <div className="col-12 col-md-auto mb-2" key={category}>
                 <button
                   className="btn btn-primary btn-lg w-100"
@@ -102,8 +144,11 @@ function App() {
         {questions.length > 0 && !loading && !showResult && (
           <div className="card shadow-lg">
             <div className="card-body">
-              <div className="mb-3">
+              <div className="mb-3 d-flex justify-content-between align-items-center">
                 <span className="badge bg-primary">Pregunta {currentQuestionIndex + 1} de 5</span>
+                <span className="badge bg-secondary">
+                  {questions[currentQuestionIndex].subcategory}
+                </span>
               </div>
               <h2 className="card-title h4 mb-4">{questions[currentQuestionIndex].question}</h2>
               <div className="d-grid gap-2">
