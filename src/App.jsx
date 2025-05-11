@@ -4,23 +4,64 @@ import "./App.css";
 import axios from 'axios';
 
 function App() {
-  const [currentQuestion, setCurrentQuestion] = useState(null);
+  const [questions, setQuestions] = useState([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedAnswers, setSelectedAnswers] = useState({});
+  const [showResult, setShowResult] = useState(false);
 
   const handleCategoryClick = async (category) => {
     try {
       setLoading(true);
       setError(null);
+      setQuestions([]);
+      setCurrentQuestionIndex(0);
+      setSelectedAnswers({});
+      setShowResult(false);
       
-      const response = await axios.post('https://trivial-completo-back.vercel.app/api/trivia/generate', { category });
-      setCurrentQuestion(response.data);
+      // Obtener 5 preguntas
+      const questionsArray = [];
+      for (let i = 0; i < 5; i++) {
+        const response = await axios.post('https://trivial-completo-back.vercel.app/api/trivia/generate', { category });
+        questionsArray.push(response.data);
+      }
+      setQuestions(questionsArray);
     } catch (err) {
-      console.error("Error al generar pregunta:", err);
-      setError("Error al cargar la pregunta. Por favor intenta de nuevo.");
+      console.error("Error al generar preguntas:", err);
+      setError("Error al cargar las preguntas. Por favor intenta de nuevo.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAnswerSelect = (option) => {
+    setSelectedAnswers({
+      ...selectedAnswers,
+      [currentQuestionIndex]: option
+    });
+
+    // Esperar un momento para mostrar el resultado y luego avanzar
+    setTimeout(() => {
+      if (currentQuestionIndex < questions.length - 1) {
+        setCurrentQuestionIndex(currentQuestionIndex + 1);
+      } else {
+        setShowResult(true);
+      }
+    }, 1000);
+  };
+
+  const getAnswerButtonClass = (option, questionIndex) => {
+    const selected = selectedAnswers[questionIndex] === option;
+    const currentQuestion = questions[questionIndex];
+    
+    if (!selected || questionIndex !== currentQuestionIndex) {
+      return "btn btn-outline-primary text-start py-3";
+    }
+    
+    return option === currentQuestion.correctAnswer
+      ? "btn btn-success text-start py-3"
+      : "btn btn-danger text-start py-3";
   };
 
   return (
@@ -34,42 +75,83 @@ function App() {
           </div>
         )}
 
-        <div className="row justify-content-center mb-5">
-          {["Ciencia", "Historia", "Geografía", "Arte", "Entretenimiento"].map((category) => (
-            <div className="col-12 col-md-auto mb-2" key={category}>
-              <button
-                className="btn btn-primary btn-lg w-100"
-                onClick={() => handleCategoryClick(category)}
-                disabled={loading}
-              >
-                {category}
-              </button>
-            </div>
-          ))}
-        </div>
+        {!questions.length && (
+          <div className="row justify-content-center mb-5">
+            {["Ciencia", "Historia", "Geografía", "Arte", "Entretenimiento"].map((category) => (
+              <div className="col-12 col-md-auto mb-2" key={category}>
+                <button
+                  className="btn btn-primary btn-lg w-100"
+                  onClick={() => handleCategoryClick(category)}
+                  disabled={loading}
+                >
+                  {category}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
         {loading && (
           <div className="text-center">
             <div className="spinner-border text-primary" role="status">
-              <span className="visually-hidden">Generando pregunta...</span>
+              <span className="visually-hidden">Generando preguntas...</span>
             </div>
           </div>
         )}
 
-        {currentQuestion && !loading && (
+        {questions.length > 0 && !loading && !showResult && (
           <div className="card shadow-lg">
             <div className="card-body">
-              <h2 className="card-title h4 mb-4">{currentQuestion.question}</h2>
+              <div className="mb-3">
+                <span className="badge bg-primary">Pregunta {currentQuestionIndex + 1} de 5</span>
+              </div>
+              <h2 className="card-title h4 mb-4">{questions[currentQuestionIndex].question}</h2>
               <div className="d-grid gap-2">
-                {currentQuestion.options.map((option, index) => (
+                {questions[currentQuestionIndex].options.map((option, index) => (
                   <button
                     key={index}
-                    className="btn btn-outline-primary text-start py-3"
-                    onClick={() => alert(option === currentQuestion.correctAnswer ? "¡Correcto!" : "Incorrecto")}
+                    className={getAnswerButtonClass(option, currentQuestionIndex)}
+                    onClick={() => handleAnswerSelect(option)}
+                    disabled={selectedAnswers[currentQuestionIndex]}
                   >
                     {option}
                   </button>
                 ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showResult && (
+          <div className="card shadow-lg">
+            <div className="card-body">
+              <h2 className="card-title h4 mb-4">Resultados</h2>
+              <div className="d-grid gap-3">
+                {questions.map((question, index) => (
+                  <div key={index} className="text-start border rounded p-3">
+                    <p className="fw-bold mb-2">Pregunta {index + 1}: {question.question}</p>
+                    <p className="mb-1">Tu respuesta: 
+                      <span className={selectedAnswers[index] === question.correctAnswer ? 
+                        "text-success fw-bold ms-2" : "text-danger fw-bold ms-2"}>
+                        {selectedAnswers[index]}
+                      </span>
+                    </p>
+                    <p className="mb-0">Respuesta correcta: 
+                      <span className="text-success fw-bold ms-2">{question.correctAnswer}</span>
+                    </p>
+                  </div>
+                ))}
+                <button
+                  className="btn btn-primary mt-3"
+                  onClick={() => {
+                    setQuestions([]);
+                    setSelectedAnswers({});
+                    setCurrentQuestionIndex(0);
+                    setShowResult(false);
+                  }}
+                >
+                  Jugar de nuevo
+                </button>
               </div>
             </div>
           </div>

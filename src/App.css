@@ -25,6 +25,11 @@ body {
 .card {
   border: none;
   border-radius: 1rem;
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
 }
 
 .btn-outline-primary {
@@ -39,4 +44,37 @@ body {
 
 .shadow-lg {
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Animaciones para las respuestas */
+.btn-success, .btn-danger {
+  transition: all 0.3s ease !important;
+}
+
+.btn-success {
+  animation: correctAnswer 0.5s ease;
+}
+
+.btn-danger {
+  animation: incorrectAnswer 0.5s ease;
+}
+
+@keyframes correctAnswer {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+@keyframes incorrectAnswer {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+  100% { transform: translateX(0); }
+}
+
+/* Mejoras visuales adicionales */
+.badge {
+  font-size: 1rem;
+  padding: 0.5rem 1rem;
+  margin-bottom: 1rem;
 }
